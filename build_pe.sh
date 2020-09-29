@@ -1,2 +1,2 @@
 #!/bin/sh
-wine pyinstaller.exe eesh.py
+wine pyinstaller.exe --onefile eesh.py
